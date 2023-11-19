@@ -1,4 +1,4 @@
-# BlauNow
+# BlauLink
 My IoT switch idea design
 
 ## Points
