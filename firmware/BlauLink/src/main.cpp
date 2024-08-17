@@ -15,7 +15,7 @@
 #include <EEPROM.h>
 #include <esp_now.h>
 
-const char* ssid = "test_captive_portal"; //Name of the WIFI network hosted by the device
+const char* ssid = "EspLink-AP"; //Name of the WIFI network hosted by the device
 const char* password =  "";               //Password
 
 AsyncWebServer server(80);                //This creates a web server, required in order to host a page for connected devices
@@ -40,7 +40,7 @@ unsigned long startTime; // Variable per emmagatzemar el temps d'inici
 
 
 // REPLACE WITH YOUR RECEIVER MAC Address
-uint8_t broadcastAddress[] = {0x10, 0x52, 0x1C, 0x88, 0x5D, 0xBD}; //llum //{0xA0, 0x76, 0x4E, 0x36, 0x0A, 0x89};  //PETIT //A0:76:4E:36:0A:89 // BIG  //64:E8:33:C7:62:50
+//uint8_t broadcastAddress[] = {0x10, 0x52, 0x1C, 0x88, 0x5D, 0xBD}; //llum //{0xA0, 0x76, 0x4E, 0x36, 0x0A, 0x89};  //PETIT //A0:76:4E:36:0A:89 // BIG  //64:E8:33:C7:62:50
 
 // Structure example to send data
 // Must match the receiver structure
@@ -66,21 +66,11 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
     FastLED.show();
     leds[0] = CRGB::Green;
     FastLED.show();
-    /*delay(100);
-    leds[0] = CRGB::Black;
-    FastLED.show();
-    delay(100);
-    Serial.println("green");*/
   }else{
     leds[0] = CRGB::Red;
     FastLED.show();
     leds[0] = CRGB::Red;
     FastLED.show();
-    /*delay(100);
-    leds[0] = CRGB::Black;
-    FastLED.show();
-    delay(100);
-    Serial.println("red");*/
   }
 }
 
@@ -126,16 +116,21 @@ void webServerSetup(){
       if(p->isPost()){
         if (p->name() == PARAM_INPUT_1) {
           mac = p->value().c_str();
-          Serial.print("Nova adreça MAC: ");
-          Serial.println(mac);
+          Serial.print("Nova adreça MAC: -");
+          Serial.print(mac);
+          Serial.println("-");
           //EEPROM.write(0, String(mac));
           mac.replace(":", "");
-          for (int i = 0; i < 6; i++) {
-            String byteString = mac.substring(i * 2, i * 2 + 2); // Obtenim cada parell de dígits
-            macAddress[i] = strtol(byteString.c_str(), NULL, 16); // Convertim el parell a byte
-            EEPROM.write(i, macAddress[i]);
+          if(mac == ""){
+            Serial.println("no introduida cap mac, no guardar");
+          }else{
+            for (int i = 0; i < 6; i++) {
+              String byteString = mac.substring(i * 2, i * 2 + 2); // Obtenim cada parell de dígits
+              macAddress[i] = strtol(byteString.c_str(), NULL, 16); // Convertim el parell a byte
+              EEPROM.write(i, macAddress[i]);
+            }
+            EEPROM.commit();
           }
-          EEPROM.commit();
           //writeFile(SPIFFS, macPath, mac.c_str());  // Write file to save value
           //writeFile(SPIFFS, ssidPath, ssid.c_str());  // Write file to save value
         }
@@ -179,6 +174,10 @@ void setup() {
     mac += String(macAddress[i], HEX); // Convertim el byte a hexadecimal
   }
 
+  /*for (int i = 0; i < 6; i++) {
+      broadcastAddress[i] = macAddress[i];
+  }*/
+
   pinMode(5, INPUT);  // boto
 
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
@@ -197,7 +196,7 @@ void setup() {
   esp_now_register_send_cb(OnDataSent);
   
   // Register peer
-  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  memcpy(peerInfo.peer_addr, macAddress, 6); //broadcastAddress, 6);
   peerInfo.channel = 0;  
   peerInfo.encrypt = false;
   
@@ -214,7 +213,7 @@ void setup() {
   myData.d = false;
   
   // Send message via ESP-NOW
-  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+  esp_err_t result = esp_now_send(macAddress, (uint8_t *) &myData, sizeof(myData));  //broadcastAddress, (uint8_t *) &myData, sizeof(myData));
 
 }
 
@@ -241,6 +240,7 @@ void loop() {
   if(startTime + 3000 < millis()){
     //mac = EEPROM.read(0);//readFile(SPIFFS, macPath);
     Serial.print("MAC guardada:  "); Serial.println(mac);
+
     leds[0] = CRGB::Red;
     FastLED.show();
     leds[0] = CRGB::Red;
@@ -251,11 +251,26 @@ void loop() {
     dnsServer.start(53, "*", WiFi.softAPIP());  //This starts the DNS server.  The "*" sends any request for port 53 straight to the IP address of the device
     webServerSetup();                       //Configures the behavior of the web server
     Serial.println("Setup complete");
+
+    bool buttonStateLow1=false;
+    bool buttonStateHigh2=false;
     while(1){
       dnsServer.processNextRequest();
       if(startTime + 60000 < millis()){
         esp_deep_sleep_start();
       }
+
+      // detecta si s'ha tornat a presionar el boto, per aleshores apagar
+      if(!digitalRead(5) || buttonStateLow1){
+        buttonStateLow1=true;
+        if(digitalRead(5) || buttonStateHigh2){
+          buttonStateHigh2 = true;
+          if(!digitalRead(5)){
+            esp_deep_sleep_start();
+          }
+        }
+      }
+
     }
   }
 
