@@ -1,4 +1,4 @@
-![](pictures/1.jpg)
+![](pictures/1.jpg) <img src="https://github.com/CasamaMaker/CasamaMaker/blob/main/CasamaMaker-textlogo.png"  width="300" align="right">
 
 [![GitHub version](https://img.shields.io/github/release/CasamaMaker/BlauLink.svg)](https://github.com/CasamaMaker/BlauLink/releases)
 [![GitHub download](https://img.shields.io/github/downloads/CasamaMaker/BlauLink/total.svg)](https://github.com/CasamaMaker/BlauLink/releases/latest)
